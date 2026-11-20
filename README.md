@@ -1,1 +1,1 @@
-# multi-agent-chat
+# sistema-multi-agente-para-geracao-de-requisitos
