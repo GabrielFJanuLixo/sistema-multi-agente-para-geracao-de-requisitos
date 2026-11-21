@@ -1,7 +1,8 @@
+import enum
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func
+from sqlalchemy import Text, func
 from sqlalchemy.orm import (
     Mapped,
     mapped_as_dataclass,
@@ -17,6 +18,14 @@ if TYPE_CHECKING:
     from multi_agent_chat.models.message import Message
 
 
+# Enum para representar o papel de um agente
+class AgentRole(str, enum.Enum):
+    INTERVIEWER = 'interviewer'
+    BACKEND = 'backend'
+    FRONTEND = 'frontend'
+    QA = 'qa'
+
+
 @mapped_as_dataclass(table_registry)
 class Agent:
     __tablename__ = 'agents'
@@ -25,8 +34,9 @@ class Agent:
     name: Mapped[str]
     description: Mapped[str]
     model: Mapped[str]
-    system_prompt: Mapped[str]
+    system_prompt: Mapped[str] = mapped_column(Text)
     temperature: Mapped[float]
+    role: Mapped[AgentRole | None] = mapped_column(default=None, unique=True)
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )

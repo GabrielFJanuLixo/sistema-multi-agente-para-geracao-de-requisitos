@@ -19,6 +19,7 @@ def test_add_conversation_agent(client, conversation, agent, token):
         'temperature': agent.temperature,
         'created_at': agent.created_at.isoformat(),
         'updated_at': agent.updated_at.isoformat(),
+        'role': agent.role,
     }
 
 
@@ -41,6 +42,7 @@ def test_list_conversation_agents(
             'temperature': agent.temperature,
             'created_at': agent.created_at.isoformat(),
             'updated_at': agent.updated_at.isoformat(),
+            'role': agent.role,
         }
     ]
 

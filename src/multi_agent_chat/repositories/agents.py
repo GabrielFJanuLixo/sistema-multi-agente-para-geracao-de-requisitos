@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Annotated
 
 from fastapi import Depends
@@ -6,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from multi_agent_chat.core.database import get_session
-from multi_agent_chat.models.agent import Agent
+from multi_agent_chat.models.agent import Agent, AgentRole
 
 Session = Annotated[AsyncSession, Depends(get_session)]
 
@@ -59,3 +61,14 @@ class AgentRepository:
         except IntegrityError:
             await self.session.rollback()
             raise
+
+    async def find_by_role(self, role: AgentRole) -> Agent | None:
+        return await self.session.scalar(
+            select(Agent).where(Agent.role == role)
+        )
+
+    async def list_by_roles(self, roles: list[AgentRole]) -> list[Agent]:
+        result = await self.session.scalars(
+            select(Agent).where(Agent.role.in_(roles)).order_by(Agent.id)
+        )
+        return result.all()

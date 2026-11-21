@@ -4,7 +4,10 @@ from typing import Annotated
 from fastapi import Depends, HTTPException
 
 from multi_agent_chat.models.agent import Agent
-from multi_agent_chat.models.conversation import Conversation
+from multi_agent_chat.models.conversation import (
+    Conversation,
+    ConversationStatus,
+)
 from multi_agent_chat.repositories.agents import AgentRepository
 from multi_agent_chat.repositories.conversations import (
     ConversationRepository,
@@ -70,6 +73,26 @@ class ConversationService:
         )
         return db_conversation
 
+    @staticmethod
+    def _ensure_limits_editable(
+        db_conversation: Conversation, data: dict
+    ) -> None:
+        if db_conversation.status == ConversationStatus.IDLE:
+            return
+        changing_rounds = (
+            'max_rounds' in data
+            and data['max_rounds'] != db_conversation.max_rounds
+        )
+        changing_interviews = (
+            'max_interviews' in data
+            and data['max_interviews'] != db_conversation.max_interviews
+        )
+        if changing_rounds or changing_interviews:
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail='Cannot change limits after conversation has started',
+            )
+
     async def update_conversation(
         self,
         conversation_id: int,
@@ -81,6 +104,8 @@ class ConversationService:
         )
 
         update_data = conversation_in.model_dump(exclude_unset=True)
+
+        self._ensure_limits_editable(db_conversation, update_data)
 
         db_conversation = await self.repository.update(
             db_conversation, update_data
@@ -98,6 +123,8 @@ class ConversationService:
         )
 
         replace_data = conversation_in.model_dump()
+
+        self._ensure_limits_editable(db_conversation, replace_data)
 
         db_conversation = await self.repository.replace(
             db_conversation, replace_data

@@ -17,6 +17,7 @@ def test_create_agent(client, admin_token, mock_db_time):
                 'model': 'test-model',
                 'system_prompt': 'Be helpful.',
                 'temperature': 0.7,
+                'role': None,
             },
         )
 
@@ -30,6 +31,7 @@ def test_create_agent(client, admin_token, mock_db_time):
         'temperature': 0.7,
         'created_at': time.isoformat(),
         'updated_at': time.isoformat(),
+        'role': None,
     }
 
 
@@ -49,6 +51,7 @@ def test_get_agent_by_id(client, agent, token):
         'temperature': agent.temperature,
         'created_at': agent.created_at.isoformat(),
         'updated_at': agent.updated_at.isoformat(),
+        'role': agent.role,
     }
 
 
@@ -72,6 +75,7 @@ def test_update_agent(client, agent, admin_token):
         'temperature': 0,
         'created_at': agent.created_at.isoformat(),
         'updated_at': agent.updated_at.isoformat(),
+        'role': agent.role,
     }
 
 
@@ -85,6 +89,7 @@ def test_replace_agent(client, agent, admin_token):
             'model': 'another-model',
             'system_prompt': 'New prompt',
             'temperature': 1.0,
+            'role': agent.role,
         },
     )
 
@@ -98,6 +103,7 @@ def test_replace_agent(client, agent, admin_token):
         'temperature': 1.0,
         'created_at': agent.created_at.isoformat(),
         'updated_at': agent.updated_at.isoformat(),
+        'role': agent.role,
     }
 
 
@@ -135,6 +141,7 @@ def test_list_all_agents(client, agent, token):
             'temperature': agent.temperature,
             'created_at': agent.created_at.isoformat(),
             'updated_at': agent.updated_at.isoformat(),
+            'role': agent.role,
         }
     ]
 

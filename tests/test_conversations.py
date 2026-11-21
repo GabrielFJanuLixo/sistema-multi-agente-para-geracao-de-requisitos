@@ -20,6 +20,9 @@ def test_create_conversation(client, user, token, mock_db_time):
         'title': 'Test conversation',
         'created_at': time.isoformat(),
         'updated_at': time.isoformat(),
+        'status': 'idle',
+        'max_rounds': 2,
+        'max_interviews': 2,
     }
 
 
@@ -36,6 +39,9 @@ def test_get_conversation_by_id(client, conversation, token):
         'title': conversation.title,
         'created_at': conversation.created_at.isoformat(),
         'updated_at': conversation.updated_at.isoformat(),
+        'status': 'idle',
+        'max_rounds': 2,
+        'max_interviews': 2,
     }
 
 
@@ -55,6 +61,9 @@ def test_update_and_replace_conversation(client, conversation, token, method):
         'title': 'Updated conversation',
         'created_at': conversation.created_at.isoformat(),
         'updated_at': conversation.updated_at.isoformat(),
+        'status': 'idle',
+        'max_rounds': 2,
+        'max_interviews': 2,
     }
 
 
@@ -100,6 +109,9 @@ def test_list_my_conversations(client, conversation, token):
             'title': conversation.title,
             'created_at': conversation.created_at.isoformat(),
             'updated_at': conversation.updated_at.isoformat(),
+            'status': 'idle',
+            'max_rounds': 2,
+            'max_interviews': 2,
         }
     ]
 

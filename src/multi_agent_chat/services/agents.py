@@ -36,6 +36,8 @@ class AgentService:
     async def create_agent(self, agent_in: AgentCreate) -> Agent:
         create_data = agent_in.model_dump()
 
+        await self._ensure_role_available(create_data.get('role'))
+
         db_agent = await self.repository.create(create_data)
         return db_agent
 
@@ -55,6 +57,7 @@ class AgentService:
         agent_in: AgentUpdate,
     ) -> Agent:
         db_agent = await self._get_agent_by_id_or_404(agent_id)
+        await self._ensure_role_available(agent_in.role, agent_id)
 
         update_data = agent_in.model_dump(exclude_unset=True)
 
@@ -82,3 +85,15 @@ class AgentService:
                 status_code=HTTPStatus.CONFLICT,
                 detail='Cannot delete an agent with messages',
             ) from exc
+
+    async def _ensure_role_available(
+        self, role, agent_id: int | None = None
+    ) -> None:
+        if role is None:
+            return
+        existing = await self.repository.find_by_role(role)
+        if existing and existing.id != agent_id:
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail='Agent role already exists',
+            )

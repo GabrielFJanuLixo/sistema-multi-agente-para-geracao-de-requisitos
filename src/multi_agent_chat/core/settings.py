@@ -10,3 +10,5 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
+    GOOGLE_API_KEY: str = ''
+    CHECKPOINT_DB_PATH: str = 'checkpoints.db'
