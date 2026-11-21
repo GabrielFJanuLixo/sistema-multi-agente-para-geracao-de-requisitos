@@ -34,6 +34,14 @@ SCHEMA_TYPES = (
     'ResultadoProjeto',
 )
 
+STATUS_BOTS = {
+    'entrevistador_avaliador': 'Entrevistador analisando os requisitos...',
+    'backend': 'Especialista de backend concluiu sua análise.',
+    'frontend': 'Especialista de frontend concluiu sua análise.',
+    'qa': 'Especialista de QA concluiu sua análise.',
+    'resposta': 'Especificação final pronta.',
+}
+
 
 def build_serializer() -> JsonPlusSerializer:
     return JsonPlusSerializer(
@@ -462,3 +470,44 @@ class Orquestrador:
         )
 
         return self._formatar_turno(estado)
+
+    async def stream(
+        self,
+        thread_id: str,
+        texto: str,
+        *,
+        iniciar: bool,
+        encerrar: bool = False,
+    ):
+        desc_limpa = texto.strip()
+
+        if iniciar:
+            entrada = {'descricao': desc_limpa}
+        else:
+            fechar = encerrar or desc_limpa.lower() == '/encerrar'
+
+            if fechar:
+                payload = {
+                    'encerrar': True,
+                    'resposta': '' if desc_limpa.lower() == '/encerrar' else desc_limpa,
+                }
+            else:
+                payload = desc_limpa
+    
+            entrada = Command(resume=payload)
+
+        estado = None
+
+        async for modo, chunk in self.grafo.astream(
+            entrada,
+            config=self._config(thread_id),
+            stream_mode=['updates', 'values'], # Verifica o estado completo (values) e também os atualizações parciais (updates)
+        ):
+            if modo == 'values':
+                estado = chunk
+            elif modo == 'updates':
+                for status_update in chunk:
+                    if status_update in STATUS_BOTS:
+                        yield {'tipo': 'status', 'mensagem': STATUS_BOTS[status_update]}
+
+        yield {'tipo': 'done', 'turno': self._formatar_turno(estado)}

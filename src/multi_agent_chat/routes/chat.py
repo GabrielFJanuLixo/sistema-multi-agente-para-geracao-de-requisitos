@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import PlainTextResponse
+from fastapi.sse import EventSourceResponse
 
 from multi_agent_chat.core.security import get_current_user
 from multi_agent_chat.models.user import User
@@ -36,6 +37,22 @@ async def send_chat_message(
         content=chat_in.content,
         finish=chat_in.finish,
     )
+
+# authenticated owner
+@router.post('/chat/stream', status_code=HTTPStatus.OK)
+async def stream_chat_message(
+    conversation_id: int,
+    chat_in: ChatRequest,
+    service: Service,
+    current_user: CurrentUser,
+):
+    events = await service.stream_message(
+        conversation_id=conversation_id,
+        user_id=current_user.id,
+        content=chat_in.content,
+        finish=chat_in.finish,
+    )
+    return EventSourceResponse(events)
 
 
 # authenticated owner

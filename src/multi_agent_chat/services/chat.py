@@ -1,6 +1,10 @@
 from http import HTTPStatus
 from typing import Annotated, Any
 
+import json
+from fastapi.sse import format_sse_event
+from multi_agent_chat.schemas.chat import ChatResponse
+
 from fastapi import Depends, HTTPException
 from langchain_google_genai.chat_models import (
     GoogleAPIError,
@@ -156,14 +160,9 @@ class ChatService:
             )
         return formatar_especificacao_markdown(turno['resultado'])
 
-    async def send_message(
-        self,
-        conversation_id: int,
-        user_id: int,
-        content: str,
-        *,
-        finish: bool = False,
-    ) -> dict:
+    async def _setup_turn(
+        self, conversation_id: int, user_id: int, content: str
+    ):
         conversation = (
             await self.conversation_service.get_conversation_by_id(
                 conversation_id, user_id
@@ -184,19 +183,22 @@ class ChatService:
 
         agents_by_role = await self._ensure_conversation_agents(conversation)
         orquestrador = self._build_orchestrator(conversation, agents_by_role)
+        return conversation, agents_by_role[AgentRole.INTERVIEWER], orquestrador
 
-        turno = await self._run_turn(
-            orquestrador, conversation, content, finish=finish
-        )
-
+    async def _save_turn(
+        self,
+        conversation: Conversation,
+        interviewer: Agent,
+        user_content: str,
+        turno: dict,
+    ) -> dict:
         user_message = await self.message_repository.create({
-            'conversation_id': conversation_id,
-            'user_id': user_id,
-            'content': self._format_user_content(content, finish=finish),
+            'conversation_id': conversation.id,
+            'user_id': conversation.user_id,
+            'content': user_content,
         })
-        interviewer = agents_by_role[AgentRole.INTERVIEWER]
         assistant_message = await self.message_repository.create({
-            'conversation_id': conversation_id,
+            'conversation_id': conversation.id,
             'agent_id': interviewer.id,
             'content': self._format_assistant_content(turno),
         })
@@ -211,9 +213,8 @@ class ChatService:
         await self.conversation_service.repository.update(
             conversation, update_data
         )
-
         return {
-            'conversation_id': conversation_id,
+            'conversation_id': conversation.id,
             'status': new_status,
             'user_message': user_message,
             'assistant_message': assistant_message,
@@ -222,6 +223,81 @@ class ChatService:
             'question_total': turno['pergunta_total'],
             'specification': turno['resultado'],
         }
+
+    async def send_message(
+        self,
+        conversation_id: int,
+        user_id: int,
+        content: str,
+        *,
+        finish: bool = False,
+    ) -> dict:
+        conversation, interviewer, orquestrador = await self._setup_turn(
+            conversation_id, user_id, content
+        )
+        turno = await self._run_turn(
+            orquestrador, conversation, content, finish=finish
+        )
+        return await self._save_turn(
+            conversation,
+            interviewer,
+            self._format_user_content(content, finish=finish),
+            turno,
+        )
+
+    async def stream_message(
+        self,
+        conversation_id: int,
+        user_id: int,
+        content: str,
+        *,
+        finish: bool = False,
+    ):
+        conversation, interviewer, orquestrador = await self._setup_turn(
+            conversation_id, user_id, content
+        )
+        thread_id = self._thread_id(user_id, conversation_id)
+        is_start = conversation.status == ConversationStatus.IDLE
+        user_content = self._format_user_content(content, finish=finish)
+
+        async def events():
+            yield format_sse_event(
+                data_str=json.dumps({'mensagem': 'Processando...'}),
+                event='status',
+            )
+            turno = None
+            try:
+                async for item in orquestrador.stream(
+                    thread_id, content, iniciar=is_start, encerrar=finish
+                ):
+                    if item['tipo'] == 'status':
+                        yield format_sse_event(
+                            data_str=json.dumps(
+                                {'mensagem': item['mensagem']},
+                                ensure_ascii=False,
+                            ),
+                            event='status',
+                        )
+                    else:
+                        turno = item['turno']
+            except (GoogleRateLimitError, GoogleAPIError) as exc:
+                yield format_sse_event(
+                    data_str=json.dumps({'detail': str(exc)}),
+                    event='error',
+                )
+                return
+
+            result = await self._save_turn(
+                conversation, interviewer, user_content, turno
+            )
+            
+            done_json = ChatResponse.model_validate(
+                result, from_attributes=True
+            ).model_dump_json()
+
+            yield format_sse_event(data_str=done_json, event='done')
+
+        return events()
 
     async def get_specification(
         self, conversation_id: int, user_id: int
