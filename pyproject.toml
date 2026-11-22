@@ -39,7 +39,7 @@ dev = [
 ]
 
 [tool.ruff]
-line-length = 79
+line-length = 130
 extend-exclude = ['migrations']
 
 [tool.ruff.lint]

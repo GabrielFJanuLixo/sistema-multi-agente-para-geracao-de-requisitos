@@ -1,11 +1,9 @@
+import json
 from http import HTTPStatus
 from typing import Annotated, Any
 
-import json
-from fastapi.sse import format_sse_event
-from multi_agent_chat.schemas.chat import ChatResponse
-
 from fastapi import Depends, HTTPException
+from fastapi.sse import format_sse_event
 from langchain_google_genai.chat_models import (
     GoogleAPIError,
     GoogleRateLimitError,
@@ -32,6 +30,7 @@ from multi_agent_chat.models.conversation import (
     ConversationStatus,
 )
 from multi_agent_chat.repositories.messages import MessageRepository
+from multi_agent_chat.schemas.chat import ChatResponse
 from multi_agent_chat.services.conversations import ConversationService
 
 REQUIRED_ROLES = [
@@ -290,7 +289,7 @@ class ChatService:
             result = await self._save_turn(
                 conversation, interviewer, user_content, turno
             )
-            
+
             done_json = ChatResponse.model_validate(
                 result, from_attributes=True
             ).model_dump_json()

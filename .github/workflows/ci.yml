@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obter o código
+        uses: actions/checkout@v7
+
+      - name: Preparar o Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+
+      - name: Instalar o Poetry
+        run: python -m pip install "poetry==2.5.2"
+
+      - name: Conferir os arquivos de dependências
+        run: poetry check --lock
+
+      - name: Instalar as dependências
+        run: poetry install --with dev --no-interaction
+
+      - name: Verificar o código com Ruff
+        run: poetry run ruff check .
+
+      - name: Executar os testes
+        env:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          SECRET_KEY: "chave-local-apenas-para-testes-com-mais-de-32-caracteres"
+          ALGORITHM: "HS256"
+          ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+          GOOGLE_API_KEY: ""
+          CHECKPOINT_DB_PATH: ":memory:"
+        run: poetry run pytest -v

@@ -377,7 +377,8 @@ class Orquestrador:
                 ),
             ]
 
-        # Cria o resultado final do projeto, incluindo a descrição do cliente, status, especificação, rodadas, pareceres finais e entrevistas realizadas
+        # Cria o resultado final do projeto, incluindo a descrição do cliente,
+        # status, especificação, rodadas, pareceres finais e entrevistas realizadas
         especificacao = estado['especificacao']
         pendencias = list(
             dict.fromkeys([
@@ -493,7 +494,7 @@ class Orquestrador:
                 }
             else:
                 payload = desc_limpa
-    
+
             entrada = Command(resume=payload)
 
         estado = None
@@ -501,7 +502,7 @@ class Orquestrador:
         async for modo, chunk in self.grafo.astream(
             entrada,
             config=self._config(thread_id),
-            stream_mode=['updates', 'values'], # Verifica o estado completo (values) e também os atualizações parciais (updates)
+            stream_mode=['updates', 'values'],  # Verifica o estado completo (values) e também os atualizações parciais (updates)
         ):
             if modo == 'values':
                 estado = chunk

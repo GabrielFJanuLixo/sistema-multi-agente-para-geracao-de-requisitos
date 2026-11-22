@@ -17,9 +17,9 @@ Não se limite à correção gramatical; considere requisitos ausentes e contrad
 }
 
 RESTRICAO = """
-A descrição do cliente é a única evidência de negócio. 
+A descrição do cliente é a única evidência de negócio.
 Não invente aprovações. Marque como crítico só bloqueios reais.
-Direcione problemas à especialidade apropriada ou ao analista.       
+Direcione problemas à especialidade apropriada ou ao analista.
 """
 
 PROMPT_AVALIACAO = """
@@ -66,7 +66,9 @@ class Especialista:
             },
         )
 
-    # Debata com os demais especialistas, produzindo mensagens endereçadas aos colegas quando houver discordância, dependência ou esclarecimento.
+    # Debata com os demais especialistas, produzindo
+    # mensagens endereçadas aos colegas quando houver discordância,
+    # dependência ou esclarecimento.
     async def debater(self, descricao, especificacao, pareceres):
         return await self.debatedor.executar(
             'Debata com os demais especialistas. Produza mensagens endereçadas '

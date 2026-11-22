@@ -38,6 +38,7 @@ async def send_chat_message(
         finish=chat_in.finish,
     )
 
+
 # authenticated owner
 @router.post('/chat/stream', status_code=HTTPStatus.OK)
 async def stream_chat_message(
