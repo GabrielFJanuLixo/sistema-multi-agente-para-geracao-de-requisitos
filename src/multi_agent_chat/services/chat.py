@@ -6,6 +6,7 @@ from fastapi import Depends, HTTPException
 from fastapi.sse import format_sse_event
 from langchain_google_genai.chat_models import (
     GoogleAPIError,
+    GoogleGenerativeAIError,
     GoogleRateLimitError,
 )
 
@@ -43,6 +44,43 @@ FINISHED_STATUSES = {
     ConversationStatus.COMPLETED,
     ConversationStatus.COMPLETED_WITH_PENDING,
 }
+
+# Qualquer falha vinda do Gemini: erros 5xx (GoogleAPIError) e os demais
+# (GoogleGenerativeAIError: requisição inválida, chave inválida, modelo não
+# encontrado, permissão negada, limite de cota...).
+GEMINI_ERRORS = (GoogleAPIError, GoogleGenerativeAIError)
+
+
+def gemini_error_info(exc: Exception) -> tuple[HTTPStatus, str]:
+    """Traduz uma falha do Gemini em (status HTTP, mensagem segura).
+
+    A mensagem não repassa o texto cru da exceção, que pode trazer detalhes
+    internos da chamada.
+    """
+    if isinstance(exc, GoogleRateLimitError):
+        return (
+            HTTPStatus.TOO_MANY_REQUESTS,
+            'Gemini API rate limit exceeded. Try again later.',
+        )
+    if (
+        isinstance(exc, GoogleAPIError)
+        and exc.code == HTTPStatus.SERVICE_UNAVAILABLE
+    ):
+        return (
+            HTTPStatus.SERVICE_UNAVAILABLE,
+            'Gemini API is temporarily unavailable.',
+        )
+    if isinstance(exc, GoogleAPIError):
+        return (
+            HTTPStatus.BAD_GATEWAY,
+            'Error communicating with Gemini API.',
+        )
+    return (
+        HTTPStatus.BAD_GATEWAY,
+        'Gemini API rejected the request. '
+        'Check the API key and the model settings.',
+    )
+
 
 ConversationServiceDep = Annotated[ConversationService, Depends()]
 MessageRepositoryDep = Annotated[MessageRepository, Depends()]
@@ -126,20 +164,10 @@ class ChatService:
             return await orquestrador.responder(
                 thread_id, content, encerrar=finish
             )
-        except GoogleRateLimitError as exc:
+        except GEMINI_ERRORS as exc:
+            status_code, detail = gemini_error_info(exc)
             raise HTTPException(
-                status_code=HTTPStatus.TOO_MANY_REQUESTS,
-                detail='Gemini API rate limit exceeded. Try again later.',
-            ) from exc
-        except GoogleAPIError as exc:
-            if exc.code == HTTPStatus.SERVICE_UNAVAILABLE:
-                raise HTTPException(
-                    status_code=HTTPStatus.SERVICE_UNAVAILABLE,
-                    detail='Gemini API is temporarily unavailable.',
-                ) from exc
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_GATEWAY,
-                detail='Error communicating with Gemini API.',
+                status_code=status_code, detail=detail
             ) from exc
 
     @staticmethod
@@ -279,9 +307,13 @@ class ChatService:
                         )
                     else:
                         turno = item['turno']
-            except (GoogleRateLimitError, GoogleAPIError) as exc:
+            except GEMINI_ERRORS as exc:
+                status_code, detail = gemini_error_info(exc)
                 yield format_sse_event(
-                    data_str=json.dumps({'detail': str(exc)}),
+                    data_str=json.dumps({
+                        'detail': detail,
+                        'status_code': int(status_code),
+                    }),
                     event='error',
                 )
                 return
