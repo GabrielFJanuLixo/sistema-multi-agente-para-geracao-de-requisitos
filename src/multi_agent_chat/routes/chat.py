@@ -10,6 +10,7 @@ from multi_agent_chat.models.user import User
 from multi_agent_chat.schemas.chat import (
     ChatRequest,
     ChatResponse,
+    ReopenRequest,
     SpecificationResponse,
 )
 from multi_agent_chat.services.chat import ChatService
@@ -52,6 +53,41 @@ async def stream_chat_message(
         user_id=current_user.id,
         content=chat_in.content,
         finish=chat_in.finish,
+    )
+    return EventSourceResponse(events)
+
+
+# authenticated owner
+@router.post(
+    '/reopen',
+    status_code=HTTPStatus.OK,
+    response_model=ChatResponse,
+)
+async def reopen_conversation(
+    conversation_id: int,
+    reopen_in: ReopenRequest,
+    service: Service,
+    current_user: CurrentUser,
+):
+    return await service.reopen_conversation(
+        conversation_id=conversation_id,
+        user_id=current_user.id,
+        reopen_in=reopen_in,
+    )
+
+
+# authenticated owner
+@router.post('/reopen/stream', status_code=HTTPStatus.OK)
+async def stream_reopen_conversation(
+    conversation_id: int,
+    reopen_in: ReopenRequest,
+    service: Service,
+    current_user: CurrentUser,
+):
+    events = await service.stream_reopen(
+        conversation_id=conversation_id,
+        user_id=current_user.id,
+        reopen_in=reopen_in,
     )
     return EventSourceResponse(events)
 

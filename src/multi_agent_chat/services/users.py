@@ -36,9 +36,7 @@ class UserService:
         return db_user
 
     async def create_user(self, user_in: UserCreate) -> User:
-        existing_user = await self.repository.find_by_username(
-            user_in.username
-        )
+        existing_user = await self.repository.find_by_username(user_in.username)
         if existing_user:
             raise HTTPException(
                 status_code=HTTPStatus.CONFLICT,
@@ -76,9 +74,7 @@ class UserService:
         db_user = await self._get_user_by_id_or_404(user_id)
 
         if user_in.username:
-            existing_user = await self.repository.find_by_username(
-                user_in.username
-            )
+            existing_user = await self.repository.find_by_username(user_in.username)
             if existing_user and existing_user.id != user_id:
                 raise HTTPException(
                     status_code=HTTPStatus.CONFLICT,
@@ -96,9 +92,7 @@ class UserService:
         update_data = user_in.model_dump(exclude_unset=True)
 
         if 'password' in update_data:
-            update_data['password'] = get_password_hash(
-                update_data['password']
-            )
+            update_data['password'] = get_password_hash(update_data['password'])
 
         db_user = await self.repository.update(db_user, update_data)
         return db_user
@@ -110,9 +104,7 @@ class UserService:
     ) -> User:
         db_user = await self._get_user_by_id_or_404(user_id)
 
-        existing_user = await self.repository.find_by_username(
-            user_in.username
-        )
+        existing_user = await self.repository.find_by_username(user_in.username)
         if existing_user and existing_user.id != user_id:
             raise HTTPException(
                 status_code=HTTPStatus.CONFLICT,

@@ -14,9 +14,7 @@ from multi_agent_chat.schemas.messages import (
 )
 from multi_agent_chat.services.messages import MessageService
 
-router = APIRouter(
-    prefix='/conversations/{conversation_id}/messages', tags=['Messages']
-)
+router = APIRouter(prefix='/conversations/{conversation_id}/messages', tags=['Messages'])
 Pagination = Annotated[PaginationParams, Query()]
 Service = Annotated[MessageService, Depends()]
 CurrentUser = Annotated[User, Depends(get_current_user)]
@@ -34,9 +32,7 @@ async def create_message(
     service: Service,
     current_user: CurrentUser,
 ):
-    return await service.create_message(
-        message_in, conversation_id, current_user.id
-    )
+    return await service.create_message(message_in, conversation_id, current_user.id)
 
 
 # authenticated owner
@@ -71,9 +67,7 @@ async def get_message_by_id(
     service: Service,
     current_user: CurrentUser,
 ):
-    return await service.get_message_by_id(
-        message_id, conversation_id, current_user.id
-    )
+    return await service.get_message_by_id(message_id, conversation_id, current_user.id)
 
 
 # authenticated owner
@@ -89,9 +83,7 @@ async def update_message(
     service: Service,
     current_user: CurrentUser,
 ):
-    return await service.update_message(
-        message_id, message_in, conversation_id, current_user.id
-    )
+    return await service.update_message(message_id, message_in, conversation_id, current_user.id)
 
 
 # authenticated owner
@@ -107,9 +99,7 @@ async def replace_message(
     service: Service,
     current_user: CurrentUser,
 ):
-    return await service.replace_message(
-        message_id, message_in, conversation_id, current_user.id
-    )
+    return await service.replace_message(message_id, message_in, conversation_id, current_user.id)
 
 
 # authenticated owner

@@ -45,9 +45,7 @@ STATUS_BOTS = {
 
 def build_serializer() -> JsonPlusSerializer:
     return JsonPlusSerializer(
-        allowed_msgpack_modules=[
-            (SCHEMA_MODULE, nome) for nome in SCHEMA_TYPES
-        ],
+        allowed_msgpack_modules=[(SCHEMA_MODULE, nome) for nome in SCHEMA_TYPES],
     )
 
 
@@ -57,6 +55,23 @@ async def create_checkpointer(db_path: str):
         saver = AsyncSqliteSaver(conn, serde=build_serializer())
         await saver.setup()
         yield saver
+
+
+RESERVED_NODES = {
+    'entrevistador_avaliador',
+    'cliente',
+    'resposta',
+    'analista',
+}
+
+
+@dataclass(frozen=True)
+class EspecialistaConfig:
+    chave: str
+    nome: str
+    descricao: str
+    modelo: object
+    prompt: str
 
 
 @dataclass(frozen=True)
@@ -72,6 +87,7 @@ class Orquestrador:
         prompts=None,
         checkpointer=None,
         config: OrquestradorConfig | None = None,
+        especialistas: list[EspecialistaConfig] | None = None,
     ):
         # Configura o orquestrador com o modelo, número máximo de rodadas e entrevistas
         cfg = config or OrquestradorConfig()
@@ -82,16 +98,37 @@ class Orquestrador:
         def _modelo_para(papel: str):
             return modelos[papel] if isinstance(modelos, dict) else modelos
 
-        self.analista = Analista(
-            _modelo_para('interviewer'), prompts.get('interviewer')
-        )
-        self.especialistas = {
-            nome: Especialista(nome, _modelo_para(nome), prompts.get(nome))
-            for nome in PAPEIS
+        self.analista = Analista(_modelo_para('interviewer'), prompts.get('interviewer'))
+
+        if especialistas is None:
+            especialistas = [
+                EspecialistaConfig(
+                    chave=nome,
+                    nome=nome,
+                    descricao=nome,
+                    modelo=_modelo_para(nome),
+                    prompt=prompts.get(nome) or PAPEIS[nome],
+                )
+                for nome in PAPEIS
+            ]
+
+        if not especialistas:
+            raise ValueError('É necessário ao menos um especialista')
+
+        chaves = [e.chave for e in especialistas]
+        if len(chaves) != len(set(chaves)):
+            raise ValueError('Chaves de especialistas duplicadas')
+        if any(c in RESERVED_NODES for c in chaves):
+            raise ValueError('Chave de especialista conflita com nó reservado')
+        equipe = {e.chave: f'{e.nome} — {e.descricao}' for e in especialistas}
+        self.especialistas = {e.chave: Especialista(e.chave, e.modelo, e.prompt, equipe=equipe) for e in especialistas}
+        self.status_bots = {
+            'entrevistador_avaliador': 'Entrevistador analisando os requisitos...',
+            'resposta': 'Especificação final pronta.',
+            **{e.chave: f'{e.nome} concluiu sua análise.' for e in especialistas},
         }
-        self.checkpointer = checkpointer or InMemorySaver(
-            serde=build_serializer()
-        )
+
+        self.checkpointer = checkpointer or InMemorySaver(serde=build_serializer())
         self.grafo = self._construir_grafo()
 
     def _construir_grafo(self):
@@ -99,15 +136,9 @@ class Orquestrador:
         grafo = StateGraph(EstadoProjeto)
 
         # Adiciona os nós do grafo
-        grafo.add_node(
-            'entrevistador_avaliador', self._mediar
-        )  # Nó do entrevistador/avaliador
-        grafo.add_node(
-            'cliente', self._cliente
-        )  # Nó do cliente (interação com o usuário)
-        grafo.add_node(
-            'resposta', self._finalizar
-        )  # Nó de finalização do projeto, retornando o resultado final
+        grafo.add_node('entrevistador_avaliador', self._mediar)  # Nó do entrevistador/avaliador
+        grafo.add_node('cliente', self._cliente)  # Nó do cliente (interação com o usuário)
+        grafo.add_node('resposta', self._finalizar)  # Nó de finalização do projeto, retornando o resultado final
         for nome in self.especialistas:
             grafo.add_node(
                 nome, partial(self._especialista, nome)
@@ -144,13 +175,9 @@ class Orquestrador:
         # Constrói o relato completo do cliente, incluindo a descrição inicial e as respostas das entrevistas
         relato = estado['descricao']
         for entrevista in estado.get('entrevistas', []):
-            for pergunta, resposta in zip(
-                entrevista.perguntas, entrevista.respostas
-            ):
+            for pergunta, resposta in zip(entrevista.perguntas, entrevista.respostas):
                 texto = resposta or '(não respondeu)'
-                relato += (
-                    f'\n\nPergunta: {pergunta}\nResposta do cliente: {texto}'
-                )
+                relato += f'\n\nPergunta: {pergunta}\nResposta do cliente: {texto}'
         return relato
 
     async def _mediar(self, estado):
@@ -176,6 +203,9 @@ class Orquestrador:
                 'acao': 'consultar',
             }
 
+        if fase == 'reabertura':
+            return await self._mediar_reabertura(estado)
+
         # Se a fase for do cliente
         if fase == 'cliente':
             # Se o cliente já encerrou a entrevista e não houve nenhuma interação, passa para a fase de avaliação
@@ -192,9 +222,7 @@ class Orquestrador:
 
             # Se o cliente já encerrou a entrevista, mantém as perguntas anteriores e adiciona as novas, removendo duplicatas
             if estado['cliente_encerrado']:
-                perguntas = list(
-                    dict.fromkeys([*estado['perguntas'], *perguntas])
-                )
+                perguntas = list(dict.fromkeys([*estado['perguntas'], *perguntas]))
             return {
                 'especificacao': entrevista.especificacao,
                 'perguntas': perguntas,
@@ -240,6 +268,52 @@ class Orquestrador:
             'acao': 'consultar',
         }
 
+    async def _mediar_reabertura(self, estado) -> dict:
+        tem_complemento = bool(estado.get('reabertura_com_complemento'))
+        tem_questoes_abertas = bool(estado['especificacao'].questoes_em_aberto)
+        pode_entrevistar = len(estado['entrevistas']) < self.max_entrevistas
+        pareceres = estado.get('pareceres', {})
+        tem_pareceres_pendentes = set(pareceres) == set(self.especialistas) and not self.aprovado_tecnicamente(pareceres)
+
+        if not tem_complemento and (not tem_questoes_abertas or not pode_entrevistar) and tem_pareceres_pendentes:
+            return {
+                'consenso': False,
+                'debates': Overwrite({}),
+                'fase': 'debate',
+                'acao': 'debater',
+                'reabertura_com_complemento': False,
+            }
+
+        if tem_complemento or (tem_questoes_abertas and pode_entrevistar):
+            entrevista = await self.analista.entrevistar(
+                self._relato(estado),
+                estado['especificacao'],
+            )
+            return {
+                'especificacao': entrevista.especificacao,
+                'perguntas': entrevista.perguntas,
+                'respostas_atuais': [],
+                'fase': 'avaliacao',
+                'pareceres': Overwrite({}),
+                'debates': Overwrite({}),
+                'cliente_encerrado': False,
+                'consenso': False,
+                'acao': 'consultar',
+                'reabertura_com_complemento': False,
+            }
+
+        return {
+            'perguntas': [],
+            'respostas_atuais': [],
+            'fase': 'avaliacao',
+            'pareceres': Overwrite({}),
+            'debates': Overwrite({}),
+            'cliente_encerrado': False,
+            'consenso': False,
+            'acao': 'avaliar',
+            'reabertura_com_complemento': False,
+        }
+
     # Determina o próximo nó do grafo com base na ação atual e no estado do projeto
     def _proximo(self, estado):
         # Se a ação for finalizar, retorna o nó de resposta
@@ -260,9 +334,7 @@ class Orquestrador:
 
     @staticmethod
     def _proximo_apos_cliente(estado):
-        if not estado['cliente_encerrado'] and len(
-            estado['respostas_atuais']
-        ) < len(estado['perguntas']):
+        if not estado['cliente_encerrado'] and len(estado['respostas_atuais']) < len(estado['perguntas']):
             return 'cliente'
         return 'entrevistador_avaliador'
 
@@ -281,9 +353,7 @@ class Orquestrador:
         })
 
         # Verifica se o cliente encerrou a entrevista e obtém as respostas fornecidas
-        encerrado = (
-            isinstance(retorno, dict) and retorno.get('encerrar') is True
-        )
+        encerrado = isinstance(retorno, dict) and retorno.get('encerrar') is True
         resposta_texto = retorno.get('resposta', '') if encerrado else retorno
 
         if not isinstance(resposta_texto, str):
@@ -343,22 +413,15 @@ class Orquestrador:
             for mensagem in debate.mensagens
             if mensagem.destinatario == nome
         ]
-        parecer = await especialista.avaliar(
-            relato, estado['especificacao'], mensagens
-        )
+        parecer = await especialista.avaliar(relato, estado['especificacao'], mensagens)
         return {'pareceres': {nome: parecer}}
 
-    @staticmethod
-    def aprovado_tecnicamente(pareceres):
-        # Verifica se todos os especialistas aprovaram a especificação e se não há observações críticas
+    def aprovado_tecnicamente(self, pareceres):
         return (
-            set(pareceres) == set(PAPEIS)
+            bool(self.especialistas)
+            and set(pareceres) == set(self.especialistas)
             and all(p.aprovado for p in pareceres.values())
-            and not any(
-                obs.gravidade in {'alta', 'critica'}
-                for parecer in pareceres.values()
-                for obs in parecer.observacoes
-            )
+            and not any(obs.gravidade in {'alta', 'critica'} for parecer in pareceres.values() for obs in parecer.observacoes)
         )
 
     # Finaliza o projeto, consolidando os resultados e retornando o estado final
@@ -386,14 +449,8 @@ class Orquestrador:
                 *estado['perguntas'],
             ])
         )
-        especificacao = especificacao.model_copy(
-            update={'questoes_em_aberto': pendencias}
-        )
-        aprovado = (
-            estado['consenso']
-            and not pendencias
-            and not estado['cliente_encerrado']
-        )
+        especificacao = especificacao.model_copy(update={'questoes_em_aberto': pendencias})
+        aprovado = estado['consenso'] and not pendencias and not estado['cliente_encerrado']
         resultado = ResultadoProjeto(
             descricao_cliente=estado['descricao'],
             status='aprovado_tecnicamente' if aprovado else 'com_pendencias',
@@ -427,11 +484,7 @@ class Orquestrador:
                 'resultado': None,
             }
         resultado: ResultadoProjeto = estado['resultado']
-        status = (
-            'completed'
-            if resultado.status == 'aprovado_tecnicamente'
-            else 'completed_with_pending'
-        )
+        status = 'completed' if resultado.status == 'aprovado_tecnicamente' else 'completed_with_pending'
         return {
             'status': status,
             'pergunta': None,
@@ -450,9 +503,7 @@ class Orquestrador:
         )
         return self._formatar_turno(estado)
 
-    async def responder(
-        self, thread_id: str, resposta: str, *, encerrar: bool = False
-    ) -> dict:
+    async def responder(self, thread_id: str, resposta: str, *, encerrar: bool = False) -> dict:
         # Executa o orquestrador, iniciando o processo de entrevista, avaliação e consolidação do projeto
         texto = resposta.strip()
         eh_encerramento = encerrar or texto.lower() == '/encerrar'
@@ -471,6 +522,66 @@ class Orquestrador:
         )
 
         return self._formatar_turno(estado)
+
+    @staticmethod
+    def _montar_estado_reabertura(
+        resultado_anterior: ResultadoProjeto,
+        complemento: str = '',
+    ) -> dict:
+        texto_extra = complemento.strip()
+        descricao = resultado_anterior.descricao_cliente
+        if texto_extra:
+            descricao = f'{descricao}\n\nComplemento do cliente:\n{texto_extra}'
+
+        return {
+            'descricao': descricao,
+            'especificacao': resultado_anterior.especificacao,
+            'numero_rodada': len(resultado_anterior.rodadas) + 1,
+            'pareceres': Overwrite(dict(resultado_anterior.pareceres_finais)),
+            'debates': Overwrite({}),
+            'consenso': False,
+            'rodadas': list(resultado_anterior.rodadas),
+            'entrevistas': list(resultado_anterior.entrevistas),
+            'perguntas': [],
+            'respostas_atuais': [],
+            'cliente_encerrado': False,
+            'fase': 'reabertura',
+            'acao': 'consultar',
+            'reabertura_com_complemento': bool(texto_extra),
+        }
+
+    async def reabrir(
+        self,
+        thread_id: str,
+        resultado_anterior: ResultadoProjeto,
+        complemento: str = '',
+    ) -> dict:
+        entrada = self._montar_estado_reabertura(resultado_anterior, complemento)
+        estado = await self.grafo.ainvoke(
+            entrada,
+            config=self._config(thread_id),
+        )
+        return self._formatar_turno(estado)
+
+    async def _stream_entrada(self, thread_id: str, entrada):
+        estado = None
+
+        async for modo, chunk in self.grafo.astream(
+            entrada,
+            config=self._config(thread_id),
+            stream_mode=['updates', 'values'],  # Verifica o estado completo (values) e também os atualizações parciais (updates)
+        ):
+            if modo == 'values':
+                estado = chunk
+            elif modo == 'updates':
+                for status_update in chunk:
+                    if status_update in self.status_bots:
+                        yield {
+                            'tipo': 'status',
+                            'mensagem': self.status_bots[status_update],
+                        }
+
+        yield {'tipo': 'done', 'turno': self._formatar_turno(estado)}
 
     async def stream(
         self,
@@ -497,18 +608,15 @@ class Orquestrador:
 
             entrada = Command(resume=payload)
 
-        estado = None
+        async for item in self._stream_entrada(thread_id, entrada):
+            yield item
 
-        async for modo, chunk in self.grafo.astream(
-            entrada,
-            config=self._config(thread_id),
-            stream_mode=['updates', 'values'],  # Verifica o estado completo (values) e também os atualizações parciais (updates)
-        ):
-            if modo == 'values':
-                estado = chunk
-            elif modo == 'updates':
-                for status_update in chunk:
-                    if status_update in STATUS_BOTS:
-                        yield {'tipo': 'status', 'mensagem': STATUS_BOTS[status_update]}
-
-        yield {'tipo': 'done', 'turno': self._formatar_turno(estado)}
+    async def stream_reabertura(
+        self,
+        thread_id: str,
+        resultado_anterior: ResultadoProjeto,
+        complemento: str = '',
+    ):
+        entrada = self._montar_estado_reabertura(resultado_anterior, complemento)
+        async for item in self._stream_entrada(thread_id, entrada):
+            yield item

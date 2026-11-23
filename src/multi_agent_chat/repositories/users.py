@@ -23,9 +23,7 @@ class UserRepository:
         return db_user
 
     async def list(self, skip: int = 0, limit: int = 100) -> list[User]:
-        result = await self.session.scalars(
-            select(User).order_by(User.id).offset(skip).limit(limit)
-        )
+        result = await self.session.scalars(select(User).order_by(User.id).offset(skip).limit(limit))
         db_users = result.all()
         return db_users
 
@@ -34,15 +32,11 @@ class UserRepository:
         return db_user
 
     async def find_by_username(self, username: str) -> User | None:
-        db_user = await self.session.scalar(
-            select(User).where(User.username == username)
-        )
+        db_user = await self.session.scalar(select(User).where(User.username == username))
         return db_user
 
     async def find_by_email(self, email: str) -> User | None:
-        db_user = await self.session.scalar(
-            select(User).where(User.email == email)
-        )
+        db_user = await self.session.scalar(select(User).where(User.email == email))
         return db_user
 
     async def update(self, db_obj: User, update_data: dict) -> User:

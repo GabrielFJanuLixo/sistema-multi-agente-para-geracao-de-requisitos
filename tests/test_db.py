@@ -24,10 +24,7 @@ async def test_create_user(session, mock_db_time):
 
     user = await session.scalar(select(User).where(User.username == 'test'))
 
-    assert {
-        attr.key: getattr(user, attr.key)
-        for attr in inspect(User).column_attrs
-    } == {
+    assert {attr.key: getattr(user, attr.key) for attr in inspect(User).column_attrs} == {
         'id': 1,
         'username': 'test',
         'email': 'teste@example.com',
@@ -39,9 +36,7 @@ async def test_create_user(session, mock_db_time):
 
 
 @pytest.mark.asyncio
-async def test_relationships_persist_from_both_sides(
-    session, conversation, agent
-):
+async def test_relationships_persist_from_both_sides(session, conversation, agent):
     await session.refresh(conversation, ['agents'])
     conversation.agents.append(agent)
     await session.commit()
@@ -55,32 +50,24 @@ async def test_relationships_persist_from_both_sides(
 
     await session.refresh(conversation, ['agents'])
     assert conversation.agents == []
-    count = await session.scalar(
-        select(func.count()).select_from(conversation_agents)
-    )
+    count = await session.scalar(select(func.count()).select_from(conversation_agents))
     assert count == 0
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('target', ['conversation', 'agent'])
-async def test_delete_parent_removes_conversation_agent_links(
-    session, conversation_with_agent, agent, target
-):
+async def test_delete_parent_removes_conversation_agent_links(session, conversation_with_agent, agent, target):
     parent = conversation_with_agent if target == 'conversation' else agent
     await session.delete(parent)
     await session.commit()
 
-    count = await session.scalar(
-        select(func.count()).select_from(conversation_agents)
-    )
+    count = await session.scalar(select(func.count()).select_from(conversation_agents))
     assert count == 0
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('author_type', ['user', 'agent'])
-async def test_message_relationships_are_bidirectional(
-    session, user, agent, author_type
-):
+async def test_message_relationships_are_bidirectional(session, user, agent, author_type):
     conversation = Conversation(user_id=user.id, title='Relationships')
     conversation.user = user
     session.add(conversation)
@@ -109,12 +96,8 @@ async def test_message_relationships_are_bidirectional(
 
 
 @pytest.mark.asyncio
-async def test_removing_message_from_conversation_deletes_orphan(
-    session, conversation, user
-):
-    message = Message(
-        conversation_id=conversation.id, content='Hello', user_id=user.id
-    )
+async def test_removing_message_from_conversation_deletes_orphan(session, conversation, user):
+    message = Message(conversation_id=conversation.id, content='Hello', user_id=user.id)
     session.add(message)
     await session.commit()
     message_id = message.id
@@ -127,9 +110,7 @@ async def test_removing_message_from_conversation_deletes_orphan(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('mode', ['orm_loaded', 'orm_unloaded', 'sql'])
-async def test_delete_user_cascades_and_preserves_shared_agents(
-    session, user, agent, conversation_with_agent, mode
-):
+async def test_delete_user_cascades_and_preserves_shared_agents(session, user, agent, conversation_with_agent, mode):
     if mode == 'sql':
         # Direct SQL bypasses ORM cascades and needs database enforcement.
         await session.execute(text('PRAGMA foreign_keys=ON'))
@@ -178,12 +159,6 @@ async def test_delete_user_cascades_and_preserves_shared_agents(
     assert await session.get(User, user_id) is None
     assert await session.get(User, survivor_id) is not None
     assert await session.get(Agent, agent_id) is not None
-    assert list(await session.scalars(select(Conversation.id))) == [
-        conversation_id
-    ]
-    assert list(await session.scalars(select(Message.content))) == [
-        'Keep reply'
-    ]
-    assert list(
-        (await session.execute(select(conversation_agents))).all()
-    ) == [(conversation_id, agent_id)]
+    assert list(await session.scalars(select(Conversation.id))) == [conversation_id]
+    assert list(await session.scalars(select(Message.content))) == ['Keep reply']
+    assert list((await session.execute(select(conversation_agents))).all()) == [(conversation_id, agent_id)]

@@ -13,10 +13,7 @@ DEFAULT_AGENTS = [
     {
         'role': AgentRole.INTERVIEWER,
         'name': 'Entrevistador / Avaliador',
-        'description': (
-            'Analista de requisitos que conversa com o usuário e '
-            'consolida a especificação.'
-        ),
+        'description': ('Analista de requisitos que conversa com o usuário e consolida a especificação.'),
         'model': DEFAULT_MODEL,
         'temperature': DEFAULT_TEMPERATURE,
         'system_prompt': (
@@ -49,9 +46,7 @@ DEFAULT_AGENTS = [
     {
         'role': AgentRole.BACKEND,
         'name': 'Dev Backend',
-        'description': (
-            'Especialista em backend, dados, regras de negócio e segurança.'
-        ),
+        'description': ('Especialista em backend, dados, regras de negócio e segurança.'),
         'model': DEFAULT_MODEL,
         'temperature': DEFAULT_TEMPERATURE,
         'system_prompt': (
@@ -65,9 +60,7 @@ DEFAULT_AGENTS = [
     {
         'role': AgentRole.FRONTEND,
         'name': 'Dev Frontend',
-        'description': (
-            'Especialista em frontend, UX, jornada e estados de interface.'
-        ),
+        'description': ('Especialista em frontend, UX, jornada e estados de interface.'),
         'model': DEFAULT_MODEL,
         'temperature': DEFAULT_TEMPERATURE,
         'system_prompt': (
@@ -80,10 +73,7 @@ DEFAULT_AGENTS = [
     {
         'role': AgentRole.QA,
         'name': 'Engenheiro QA',
-        'description': (
-            'Engenheiro QA rigoroso focado em ambiguidades, exceções e '
-            'testabilidade.'
-        ),
+        'description': ('Engenheiro QA rigoroso focado em ambiguidades, exceções e testabilidade.'),
         'model': DEFAULT_MODEL,
         'temperature': DEFAULT_TEMPERATURE,
         'system_prompt': (
@@ -100,9 +90,7 @@ DEFAULT_AGENTS = [
 async def seed_default_agents(session: AsyncSession) -> list[Agent]:
     agents: list[Agent] = []
     for data in DEFAULT_AGENTS:
-        existing = await session.scalar(
-            select(Agent).where(Agent.role == data['role'])
-        )
+        existing = await session.scalar(select(Agent).where(Agent.role == data['role']))
         if existing:
             agents.append(existing)
             continue

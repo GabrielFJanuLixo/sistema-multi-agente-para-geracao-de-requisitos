@@ -22,22 +22,14 @@ class MessageRepository:
         await self.session.refresh(db_message)
         return db_message
 
-    async def list(
-        self, conversation_id: int, skip: int = 0, limit: int = 100
-    ) -> list[Message]:
+    async def list(self, conversation_id: int, skip: int = 0, limit: int = 100) -> list[Message]:
         result = await self.session.scalars(
-            select(Message)
-            .where(Message.conversation_id == conversation_id)
-            .order_by(Message.id)
-            .offset(skip)
-            .limit(limit)
+            select(Message).where(Message.conversation_id == conversation_id).order_by(Message.id).offset(skip).limit(limit)
         )
         db_messages = result.all()
         return db_messages
 
-    async def get_by_id(
-        self, message_id: int, conversation_id: int
-    ) -> Message | None:
+    async def get_by_id(self, message_id: int, conversation_id: int) -> Message | None:
         db_message = await self.session.scalar(
             select(Message).where(
                 Message.id == message_id,

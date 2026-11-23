@@ -19,9 +19,7 @@ class AgenteEstruturado:
 
     async def executar(self, tarefa, descricao, contexto=None):
         # Recebe a tarefa, a descrição do cliente e cria o contexto textual
-        contexto_texto = '\n'.join(
-            f'{nome}: {valor}' for nome, valor in (contexto or {}).items()
-        )
+        contexto_texto = '\n'.join(f'{nome}: {valor}' for nome, valor in (contexto or {}).items())
 
         # Invoca o pipeline com a tarefa, descrição e contexto, retornando a resposta estruturada
         return await self.pipeline.ainvoke({

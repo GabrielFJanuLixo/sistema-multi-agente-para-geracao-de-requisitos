@@ -27,15 +27,9 @@ class MessageService:
         self.repository = repository
         self.conversation_service = conversation_service
 
-    async def _get_message_by_id_or_404(
-        self, message_id: int, conversation_id: int, user_id: int
-    ) -> Message:
-        await self.conversation_service.get_conversation_by_id(
-            conversation_id, user_id
-        )
-        db_message = await self.repository.get_by_id(
-            message_id, conversation_id
-        )
+    async def _get_message_by_id_or_404(self, message_id: int, conversation_id: int, user_id: int) -> Message:
+        await self.conversation_service.get_conversation_by_id(conversation_id, user_id)
+        db_message = await self.repository.get_by_id(message_id, conversation_id)
 
         if not db_message:
             raise HTTPException(
@@ -45,12 +39,8 @@ class MessageService:
 
         return db_message
 
-    async def create_message(
-        self, message_in: MessageCreate, conversation_id: int, user_id: int
-    ) -> Message:
-        await self.conversation_service.get_conversation_by_id(
-            conversation_id, user_id
-        )
+    async def create_message(self, message_in: MessageCreate, conversation_id: int, user_id: int) -> Message:
+        await self.conversation_service.get_conversation_by_id(conversation_id, user_id)
         create_data = message_in.model_dump()
         create_data['conversation_id'] = conversation_id
         create_data['user_id'] = user_id
@@ -65,9 +55,7 @@ class MessageService:
         skip: int = 0,
         limit: int = 100,
     ) -> list[Message]:
-        await self.conversation_service.get_conversation_by_id(
-            conversation_id, user_id
-        )
+        await self.conversation_service.get_conversation_by_id(conversation_id, user_id)
         db_messages = await self.repository.list(
             conversation_id=conversation_id,
             skip=skip,
@@ -75,12 +63,8 @@ class MessageService:
         )
         return db_messages
 
-    async def get_message_by_id(
-        self, message_id: int, conversation_id: int, user_id: int
-    ) -> Message:
-        db_message = await self._get_message_by_id_or_404(
-            message_id, conversation_id, user_id
-        )
+    async def get_message_by_id(self, message_id: int, conversation_id: int, user_id: int) -> Message:
+        db_message = await self._get_message_by_id_or_404(message_id, conversation_id, user_id)
         return db_message
 
     async def update_message(
@@ -90,9 +74,7 @@ class MessageService:
         conversation_id: int,
         user_id: int,
     ) -> Message:
-        db_message = await self._get_message_by_id_or_404(
-            message_id, conversation_id, user_id
-        )
+        db_message = await self._get_message_by_id_or_404(message_id, conversation_id, user_id)
 
         update_data = message_in.model_dump(exclude_unset=True)
 
@@ -106,19 +88,13 @@ class MessageService:
         conversation_id: int,
         user_id: int,
     ) -> Message:
-        db_message = await self._get_message_by_id_or_404(
-            message_id, conversation_id, user_id
-        )
+        db_message = await self._get_message_by_id_or_404(message_id, conversation_id, user_id)
 
         replace_data = message_in.model_dump()
 
         db_message = await self.repository.replace(db_message, replace_data)
         return db_message
 
-    async def delete_message(
-        self, message_id: int, conversation_id: int, user_id: int
-    ) -> None:
-        db_message = await self._get_message_by_id_or_404(
-            message_id, conversation_id, user_id
-        )
+    async def delete_message(self, message_id: int, conversation_id: int, user_id: int) -> None:
+        db_message = await self._get_message_by_id_or_404(message_id, conversation_id, user_id)
         await self.repository.delete(db_message)

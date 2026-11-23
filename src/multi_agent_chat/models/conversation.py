@@ -31,19 +31,13 @@ class Conversation:
     __tablename__ = 'conversations'
 
     id: Mapped[int] = mapped_column(init=False, primary_key=True)
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey('users.id', ondelete='CASCADE')
-    )
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'))
     title: Mapped[str]
-    status: Mapped[ConversationStatus] = mapped_column(
-        default=ConversationStatus.IDLE
-    )
+    status: Mapped[ConversationStatus] = mapped_column(default=ConversationStatus.IDLE)
     specification_json: Mapped[str | None] = mapped_column(Text, default=None)
     max_rounds: Mapped[int] = mapped_column(default=2)
     max_interviews: Mapped[int] = mapped_column(default=2)
-    created_at: Mapped[datetime] = mapped_column(
-        init=False, server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(init=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         init=False,
         server_default=func.now(),

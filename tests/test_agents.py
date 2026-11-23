@@ -212,9 +212,7 @@ def test_agent_not_found(client, admin_token, method):
     assert response.json() == {'detail': 'Agent not found'}
 
 
-@pytest.mark.parametrize(
-    ('method', 'path'), [('post', '/agents/'), ('put', '/agents/1')]
-)
+@pytest.mark.parametrize(('method', 'path'), [('post', '/agents/'), ('put', '/agents/1')])
 def test_full_payload_required(client, admin_token, method, path):
     response = client.request(
         method,
@@ -226,9 +224,7 @@ def test_full_payload_required(client, admin_token, method, path):
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
-@pytest.mark.parametrize(
-    'field', ['name', 'description', 'model', 'system_prompt', 'temperature']
-)
+@pytest.mark.parametrize('field', ['name', 'description', 'model', 'system_prompt', 'temperature'])
 def test_patch_agent_rejects_null(client, agent, admin_token, field):
     response = client.patch(
         f'/agents/{agent.id}',
@@ -248,28 +244,19 @@ def test_patch_agent_preserves_omitted_fields(client, agent, admin_token):
 
 
 @pytest.mark.asyncio
-async def test_delete_agent_with_messages_returns_conflict(
-    client, session, conversation_with_agent, admin_token
-):
+async def test_delete_agent_with_messages_returns_conflict(client, session, conversation_with_agent, admin_token):
     agent = conversation_with_agent.agents[0]
     agent_id = agent.id
     conversation_id = conversation_with_agent.id
-    message = Message(
-        conversation_id=conversation_id, agent_id=agent_id, content='Keep'
-    )
+    message = Message(conversation_id=conversation_id, agent_id=agent_id, content='Keep')
     session.add(message)
     await session.commit()
     message_id = message.id
     headers = {'Authorization': f'Bearer {admin_token}'}
     response = client.delete(f'/agents/{agent_id}', headers=headers)
     assert response.status_code == HTTPStatus.CONFLICT
-    assert response.json() == {
-        'detail': 'Cannot delete an agent with messages'
-    }
-    assert (
-        client.get(f'/agents/{agent_id}', headers=headers).status_code
-        == HTTPStatus.OK
-    )
+    assert response.json() == {'detail': 'Cannot delete an agent with messages'}
+    assert client.get(f'/agents/{agent_id}', headers=headers).status_code == HTTPStatus.OK
     await session.refresh(message)
     assert message.agent_id == agent_id
     assert message.id == message_id

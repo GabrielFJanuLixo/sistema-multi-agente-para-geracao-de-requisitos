@@ -8,9 +8,7 @@ class Requisito(BaseModel):
     categoria: Literal['RF', 'RNF']
     descricao: str
     origem: Literal['explicito', 'inferido', 'sugerido']
-    evidencia: str = Field(
-        description='Trecho da descrição ou justificativa de inferência; sem inventar citação'
-    )
+    evidencia: str = Field(description='Trecho da descrição ou justificativa de inferência; sem inventar citação')
     criterios_aceitacao: list[str]
 
 
@@ -35,18 +33,16 @@ class Observacao(BaseModel):
     gravidade: Literal['baixa', 'media', 'alta', 'critica']
     problema: str
     recomendacao: str
-    destinatario: Literal['analista', 'backend', 'frontend', 'qa']
+    destinatario: str = Field(description="Identificador do especialista destinatário ou 'analista'")
 
 
 class Parecer(BaseModel):
-    aprovado: bool = Field(
-        description='Verdadeiro apenas se não houver impedimentos relevantes'
-    )
+    aprovado: bool = Field(description='Verdadeiro apenas se não houver impedimentos relevantes')
     observacoes: list[Observacao]
 
 
 class Mensagem(BaseModel):
-    destinatario: Literal['analista', 'backend', 'frontend', 'qa']
+    destinatario: str = Field(description="Identificador do especialista destinatário ou 'analista'")
     requisito_id: str
     argumento: str
 

@@ -26,3 +26,4 @@ class EstadoProjeto(TypedDict):
     fase: str
     acao: str
     resultado: NotRequired[ResultadoProjeto]
+    reabertura_com_complemento: NotRequired[bool]

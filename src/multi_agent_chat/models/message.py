@@ -22,26 +22,17 @@ class Message:
     __tablename__ = 'messages'
     __table_args__ = (
         CheckConstraint(
-            '(user_id IS NOT NULL AND agent_id IS NULL) OR '
-            '(user_id IS NULL AND agent_id IS NOT NULL)',
+            '(user_id IS NOT NULL AND agent_id IS NULL) OR (user_id IS NULL AND agent_id IS NOT NULL)',
             name='ck_messages_exactly_one_author',
         ),
     )
 
     id: Mapped[int] = mapped_column(init=False, primary_key=True)
-    conversation_id: Mapped[int] = mapped_column(
-        ForeignKey('conversations.id', ondelete='CASCADE'), index=True
-    )
+    conversation_id: Mapped[int] = mapped_column(ForeignKey('conversations.id', ondelete='CASCADE'), index=True)
     content: Mapped[str] = mapped_column(Text)
-    user_id: Mapped[int | None] = mapped_column(
-        ForeignKey('users.id', ondelete='CASCADE'), default=None
-    )
-    agent_id: Mapped[int | None] = mapped_column(
-        ForeignKey('agents.id'), default=None
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        init=False, server_default=func.now()
-    )
+    user_id: Mapped[int | None] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), default=None)
+    agent_id: Mapped[int | None] = mapped_column(ForeignKey('agents.id'), default=None)
+    created_at: Mapped[datetime] = mapped_column(init=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         init=False,
         server_default=func.now(),

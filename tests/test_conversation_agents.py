@@ -23,9 +23,7 @@ def test_add_conversation_agent(client, conversation, agent, token):
     }
 
 
-def test_list_conversation_agents(
-    client, conversation_with_agent, agent, token
-):
+def test_list_conversation_agents(client, conversation_with_agent, agent, token):
     response = client.get(
         f'/conversations/{conversation_with_agent.id}/agents',
         headers={'Authorization': f'Bearer {token}'},
@@ -47,9 +45,7 @@ def test_list_conversation_agents(
     ]
 
 
-def test_list_conversation_agents_with_offset(
-    client, conversation_with_agent, token
-):
+def test_list_conversation_agents_with_offset(client, conversation_with_agent, token):
     response = client.get(
         f'/conversations/{conversation_with_agent.id}/agents?offset=1',
         headers={'Authorization': f'Bearer {token}'},
@@ -59,9 +55,7 @@ def test_list_conversation_agents_with_offset(
     assert response.json() == []
 
 
-def test_add_conversation_agent_is_idempotent(
-    client, conversation_with_agent, agent, token
-):
+def test_add_conversation_agent_is_idempotent(client, conversation_with_agent, agent, token):
     response = client.put(
         f'/conversations/{conversation_with_agent.id}/agents/{agent.id}',
         headers={'Authorization': f'Bearer {token}'},
@@ -78,9 +72,7 @@ def test_add_conversation_agent_is_idempotent(
     assert [item['id'] for item in response.json()] == [agent.id]
 
 
-def test_conversation_supports_multiple_agents(
-    client, conversation_with_agent, agent, second_agent, token
-):
+def test_conversation_supports_multiple_agents(client, conversation_with_agent, agent, second_agent, token):
     path = f'/conversations/{conversation_with_agent.id}/agents'
 
     response = client.put(
@@ -107,9 +99,7 @@ def test_conversation_supports_multiple_agents(
     assert [item['id'] for item in response.json()] == [second_agent.id]
 
 
-def test_remove_conversation_agent(
-    client, conversation_with_agent, agent, token
-):
+def test_remove_conversation_agent(client, conversation_with_agent, agent, token):
     path = f'/conversations/{conversation_with_agent.id}/agents'
     headers = {'Authorization': f'Bearer {token}'}
 
@@ -127,9 +117,7 @@ def test_remove_conversation_agent(
 
     assert response.status_code == HTTPStatus.OK
 
-    response = client.get(
-        f'/conversations/{conversation_with_agent.id}', headers=headers
-    )
+    response = client.get(f'/conversations/{conversation_with_agent.id}', headers=headers)
 
     assert response.status_code == HTTPStatus.OK
 
@@ -166,16 +154,12 @@ def test_remove_agent_preserves_other_conversation(
 
 @pytest.mark.parametrize('access_token', ['other_token', 'admin_token'])
 @pytest.mark.parametrize('method', ['get', 'put', 'delete'])
-def test_other_users_cannot_manage_conversation_agents(
-    client, conversation_with_agent, request, access_token, method
-):
+def test_other_users_cannot_manage_conversation_agents(client, conversation_with_agent, request, access_token, method):
     agent = request.getfixturevalue('agent')
     token = request.getfixturevalue('token')
     other_token = request.getfixturevalue(access_token)
     path = f'/conversations/{conversation_with_agent.id}/agents'
-    target_agent = (
-        request.getfixturevalue('second_agent') if method == 'put' else agent
-    )
+    target_agent = request.getfixturevalue('second_agent') if method == 'put' else agent
     target = path if method == 'get' else f'{path}/{target_agent.id}'
 
     response = client.request(
@@ -201,9 +185,7 @@ def test_other_users_cannot_manage_conversation_agents(
         ('delete', '/conversations/1/agents/1'),
     ],
 )
-def test_conversation_agent_routes_require_authentication(
-    client, method, path
-):
+def test_conversation_agent_routes_require_authentication(client, method, path):
     response = client.request(method, path)
 
     assert response.status_code == HTTPStatus.UNAUTHORIZED
@@ -246,14 +228,10 @@ def test_agent_not_found(client, conversation, token, method, detail):
     assert response.json() == {'detail': detail}
 
 
-def test_delete_conversation_preserves_agent(
-    client, conversation_with_agent, agent, token
-):
+def test_delete_conversation_preserves_agent(client, conversation_with_agent, agent, token):
     headers = {'Authorization': f'Bearer {token}'}
 
-    response = client.delete(
-        f'/conversations/{conversation_with_agent.id}', headers=headers
-    )
+    response = client.delete(f'/conversations/{conversation_with_agent.id}', headers=headers)
 
     assert response.status_code == HTTPStatus.NO_CONTENT
 
@@ -262,9 +240,7 @@ def test_delete_conversation_preserves_agent(
     assert response.status_code == HTTPStatus.OK
 
 
-def test_delete_agent_removes_conversation_membership(
-    client, conversation_with_agent, agent, admin_token, token
-):
+def test_delete_agent_removes_conversation_membership(client, conversation_with_agent, agent, admin_token, token):
     response = client.delete(
         f'/agents/{agent.id}',
         headers={'Authorization': f'Bearer {admin_token}'},

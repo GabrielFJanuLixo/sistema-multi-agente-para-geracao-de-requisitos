@@ -37,9 +37,7 @@ class Agent:
     system_prompt: Mapped[str] = mapped_column(Text)
     temperature: Mapped[float]
     role: Mapped[AgentRole | None] = mapped_column(default=None, unique=True)
-    created_at: Mapped[datetime] = mapped_column(
-        init=False, server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(init=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         init=False,
         server_default=func.now(),

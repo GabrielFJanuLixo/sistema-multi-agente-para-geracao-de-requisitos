@@ -21,9 +21,7 @@ AccessToken = Annotated[str, Depends(oauth2_scheme)]
 def create_access_token(payload: dict):
     payload_to_encode = payload.copy()
 
-    expire = datetime.now(tz=ZoneInfo('UTC')) + timedelta(
-        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-    )
+    expire = datetime.now(tz=ZoneInfo('UTC')) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
     payload_to_encode.update({'exp': expire})
 

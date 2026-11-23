@@ -28,11 +28,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 # Origens do front-end autorizadas (separadas por vírgula).
-CORS_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')
-    if origin.strip()
-]
+CORS_ORIGINS = [origin.strip() for origin in os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',') if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -43,9 +39,7 @@ app.add_middleware(
 
 
 def _has_full_match(scope: dict) -> bool:
-    return any(
-        route.matches(scope)[0] == Match.FULL for route in app.router.routes
-    )
+    return any(route.matches(scope)[0] == Match.FULL for route in app.router.routes)
 
 
 @app.middleware('http')

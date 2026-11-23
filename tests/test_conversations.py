@@ -128,9 +128,7 @@ def test_list_conversations_with_offset(client, conversation, token):
 
 @pytest.mark.parametrize('access_token', ['other_token', 'admin_token'])
 @pytest.mark.parametrize('method', ['get', 'patch', 'put', 'delete'])
-def test_other_users_cannot_access_conversation(
-    client, conversation, request, access_token, method
-):
+def test_other_users_cannot_access_conversation(client, conversation, request, access_token, method):
     other_token = request.getfixturevalue(access_token)
 
     response = client.request(
@@ -155,9 +153,7 @@ def test_other_users_cannot_access_conversation(
 
 
 @pytest.mark.parametrize('access_token', ['other_token', 'admin_token'])
-def test_list_excludes_other_users_conversations(
-    client, conversation, request, access_token
-):
+def test_list_excludes_other_users_conversations(client, conversation, request, access_token):
     other_token = request.getfixturevalue(access_token)
 
     response = client.get(

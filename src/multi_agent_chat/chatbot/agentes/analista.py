@@ -38,23 +38,14 @@ class Analista:
         base = instrucoes or INSTRUCOES
 
         # Define a função de entrevistador e consolidador
-        self.entrevistador = AgenteEstruturado(
-            modelo, base + PROMPT_ENTREVISTA, Entrevista
-        )
-        self.consolidador = AgenteEstruturado(
-            modelo, base + PROMPT, Consolidacao
-        )
+        self.entrevistador = AgenteEstruturado(modelo, base + PROMPT_ENTREVISTA, Entrevista)
+        self.consolidador = AgenteEstruturado(modelo, base + PROMPT, Consolidacao)
 
     # Executa a entrevista com o cliente, atualizando a especificação e gerando perguntas
     async def entrevistar(self, descricao, especificacao=None):
-        contexto = (
-            {'especificacao_atual': especificacao}
-            if especificacao is not None
-            else {}
-        )
+        contexto = {'especificacao_atual': especificacao} if especificacao is not None else {}
         return await self.entrevistador.executar(
-            'Entenda o pedido, atualize os requisitos e pergunte o que '
-            'precisa esclarecer.',
+            'Entenda o pedido, atualize os requisitos e pergunte o que precisa esclarecer.',
             descricao,
             contexto,
         )

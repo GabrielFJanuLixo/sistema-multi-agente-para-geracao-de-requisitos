@@ -64,9 +64,7 @@ async def get_conversation_by_id(
     service: Service,
     current_user: CurrentUser,
 ):
-    return await service.get_conversation_by_id(
-        conversation_id, current_user.id
-    )
+    return await service.get_conversation_by_id(conversation_id, current_user.id)
 
 
 # authenticated owner
@@ -81,9 +79,7 @@ async def update_conversation(
     service: Service,
     current_user: CurrentUser,
 ):
-    return await service.update_conversation(
-        conversation_id, conversation_in, current_user.id
-    )
+    return await service.update_conversation(conversation_id, conversation_in, current_user.id)
 
 
 # authenticated owner
@@ -98,9 +94,7 @@ async def replace_conversation(
     service: Service,
     current_user: CurrentUser,
 ):
-    return await service.replace_conversation(
-        conversation_id, conversation_in, current_user.id
-    )
+    return await service.replace_conversation(conversation_id, conversation_in, current_user.id)
 
 
 # authenticated owner

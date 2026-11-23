@@ -21,9 +21,7 @@ def test_access_token(settings):
 
 
 def test_invalid_access_token(client):
-    response = client.delete(
-        '/users/1', headers={'Authorization': 'Bearer token-invalido'}
-    )
+    response = client.delete('/users/1', headers={'Authorization': 'Bearer token-invalido'})
 
     assert response.status_code == HTTPStatus.UNAUTHORIZED
     assert response.json() == {'detail': 'Could not validate credentials'}

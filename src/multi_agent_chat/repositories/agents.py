@@ -26,9 +26,7 @@ class AgentRepository:
         return db_agent
 
     async def list(self, skip: int = 0, limit: int = 100) -> list[Agent]:
-        result = await self.session.scalars(
-            select(Agent).order_by(Agent.id).offset(skip).limit(limit)
-        )
+        result = await self.session.scalars(select(Agent).order_by(Agent.id).offset(skip).limit(limit))
         db_agents = result.all()
         return db_agents
 
@@ -63,12 +61,14 @@ class AgentRepository:
             raise
 
     async def find_by_role(self, role: AgentRole) -> Agent | None:
-        return await self.session.scalar(
-            select(Agent).where(Agent.role == role)
-        )
+        return await self.session.scalar(select(Agent).where(Agent.role == role))
 
     async def list_by_roles(self, roles: list[AgentRole]) -> list[Agent]:
-        result = await self.session.scalars(
-            select(Agent).where(Agent.role.in_(roles)).order_by(Agent.id)
-        )
+        result = await self.session.scalars(select(Agent).where(Agent.role.in_(roles)).order_by(Agent.id))
+        return result.all()
+
+    async def list_by_ids(self, agent_ids: list[int]) -> list[Agent]:
+        if not agent_ids:
+            return []
+        result = await self.session.scalars(select(Agent).where(Agent.id.in_(agent_ids)).order_by(Agent.id))
         return result.all()

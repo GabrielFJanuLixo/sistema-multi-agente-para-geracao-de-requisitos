@@ -41,9 +41,7 @@ class AgentService:
         db_agent = await self.repository.create(create_data)
         return db_agent
 
-    async def list_agents(
-        self, skip: int = 0, limit: int = 100
-    ) -> list[Agent]:
+    async def list_agents(self, skip: int = 0, limit: int = 100) -> list[Agent]:
         db_agents = await self.repository.list(skip=skip, limit=limit)
         return db_agents
 
@@ -73,11 +71,18 @@ class AgentService:
 
         replace_data = agent_in.model_dump()
 
+        await self._ensure_role_available(agent_in.role, agent_id)
+
         db_agent = await self.repository.replace(db_agent, replace_data)
         return db_agent
 
     async def delete_agent(self, agent_id: int) -> None:
         db_agent = await self._get_agent_by_id_or_404(agent_id)
+        if db_agent.role is not None:
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail='Cannot delete a default agent',
+            )
         try:
             await self.repository.delete(db_agent)
         except IntegrityError as exc:
@@ -86,9 +91,7 @@ class AgentService:
                 detail='Cannot delete an agent with messages',
             ) from exc
 
-    async def _ensure_role_available(
-        self, role, agent_id: int | None = None
-    ) -> None:
+    async def _ensure_role_available(self, role, agent_id: int | None = None) -> None:
         if role is None:
             return
         existing = await self.repository.find_by_role(role)
